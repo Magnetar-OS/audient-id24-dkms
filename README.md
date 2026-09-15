@@ -62,8 +62,11 @@ the source:
   its own point release's.
 - A kernel from a series with no `vendor/` directory fails its DKMS build in
   the pacman output and keeps its stock driver until the series is added.
-- The module installs to `updates/dkms`, which depmod prefers over the stock
-  module; the kernel package's own file is left alone.
+- The module installs to `updates/dkms`. While it is installed, DKMS keeps
+  the stock `snd-usb-audio.ko.zst` in
+  `/var/lib/dkms/audient-id24/original_module` and puts it back when the
+  package is removed, so `pacman -Qkk` reports that file missing in the
+  meantime.
 
 ## Install
 

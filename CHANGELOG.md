@@ -19,8 +19,8 @@ Notable changes, in the format of [Keep a Changelog](https://keepachangelog.com/
   driver.
 - `tools/update-source.sh <tag>` vendors a new series or a newer upstream
   driver and checks the patch still applies.
-- The module installs to `updates/dkms` and leaves the kernel package's own
-  module file untouched.
+- The module installs to `updates/dkms`. DKMS keeps the stock module file
+  aside while it is installed and restores it on removal.
 - **Named outputs and inputs instead of one 16-channel sink.** A UCM profile
   gives Analogue Output 1-2/3-4/5-6, Mic/Line Input 1 and 2, Loop-back, and a
   Direct profile with all channels for DAWs.
