@@ -5,8 +5,6 @@ _message() {
       systemctl --user stop pipewire.socket pipewire-pulse.socket pipewire pipewire-pulse wireplumber
       sudo modprobe -r snd_usb_audio && sudo modprobe snd_usb_audio
       systemctl --user start pipewire.socket pipewire-pulse.socket pipewire pipewire-pulse wireplumber
-==> The DKMS build downloads sound/usb from git.kernel.org, so kernel updates
-    need network access.
 EOF
 }
 

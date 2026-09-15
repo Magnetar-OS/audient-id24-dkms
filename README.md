@@ -17,15 +17,9 @@ An `audient_id24_map` in `sound/usb/mixer_maps.c` that:
   with it the `cannot get min/max values for control 11` dmesg spam.
 
 Upstream added the rename by itself in 7.3-rc2 (c53f5bfc3700, "ALSA:
-usb-audio: Add mixer map quirk for Audient iD24"), so there are two patches:
-
-| Patch                                                    | Kernels            | Adds                                      |
-|----------------------------------------------------------|--------------------|-------------------------------------------|
-| `patches/v7.2-audient-id24-mixer-map.patch`              | 7.2.x              | the whole map                             |
-| `patches/v7.3-audient-id24-ignore-broken-controls.patch` | 7.3-rc2 and later  | the two removals, on top of upstream's map |
-
-7.3-rc1 has neither upstream's map nor a patch here. The full analysis is the
-commit message at the top of each patch.
+usb-audio: Add mixer map quirk for Audient iD24"), so the 7.3 patch only adds
+the two removals on top of upstream's map, while the 7.2 patch adds the whole
+map. The full analysis is the commit message at the top of each patch.
 
 ## UCM profile
 
@@ -45,21 +39,31 @@ alsa-tests `ucm-validator2` passes.
 
 ## How the build works
 
-Kernel headers do not include driver sources. `build.sh` downloads every file
-in `sound/usb` (not its subdirectories) for the exact kernel DKMS is building,
-from git.kernel.org (`7.3.0-rc2-1-cachyos-rc` → `v7.3-rc2`, `7.2.5-1-cachyos`
-→ `v7.2.5`). It applies the patch and builds `snd-usb-audio` from upstream's
-own object list against the installed headers.
+Kernel headers do not include driver sources, and pacman runs hooks, DKMS
+included, in a network namespace with only loopback. So the repository carries
+the source:
 
-- `patches/vX.Y-*.patch` applies from kernel series X.Y on, and the newest one
-  not newer than the kernel is used.
+- `vendor/vX.Y/sound/usb/` is upstream's unmodified `sound/usb` for kernel
+  series X.Y, at the tag named in `vendor/vX.Y/TAG`. Only the directory's own
+  files; its subdirectories are other drivers.
+- `patches/vX.Y-*.patch` is the patch for that series.
+- `build.sh` copies the series matching the kernel DKMS is building, applies
+  its patch and builds `snd-usb-audio` from upstream's own object list against
+  the installed headers, offline.
+
+| Series | Vendored tag | Patch                                            |
+|--------|--------------|--------------------------------------------------|
+| v7.2   | `v7.2.6`     | `v7.2-audient-id24-mixer-map.patch`              |
+| v7.3   | `v7.3-rc3`   | `v7.3-audient-id24-ignore-broken-controls.patch` |
+
 - The module replaces `snd-usb-audio` for every USB audio device on the
-  machine. For anything other than the iD24 it is the kernel's own driver.
-- The sources are vanilla upstream tags, not the distribution's kernel tree.
-- A kernel install needs network access.
-- If the download fails or the patch stops applying, the DKMS build fails in
-  the pacman output and that kernel keeps its stock driver. Add a patch for
-  the new series under `patches/` and reinstall.
+  machine. Apart from the iD24 map it is upstream's driver at the vendored tag.
+- Every kernel in a series runs the vendored driver version, not necessarily
+  its own point release's.
+- A kernel from a series with no `vendor/` directory fails its DKMS build in
+  the pacman output and keeps its stock driver until the series is added.
+- The module installs to `updates/dkms`, which depmod prefers over the stock
+  module; the kernel package's own file is left alone.
 
 ## Install
 
@@ -82,8 +86,17 @@ systemctl --user start pipewire.socket pipewire-pulse.socket pipewire pipewire-p
 
 ## Update
 
-Kernel updates rebuild the module automatically. To pick up changes to this
-repository, run `makepkg -si` again in `packaging/arch`.
+Kernel updates within a vendored series rebuild the module automatically.
+
+For a new kernel series, or an upstream change to the driver:
+
+```sh
+tools/update-source.sh v7.4-rc1   # fetches vendor/v7.4, dry-runs patches/v7.4-*.patch
+# no patches/v7.4-*.patch yet? copy the newest one and fix it against vendor/v7.4
+bash tests/test-build-plan.sh
+git add vendor patches && git commit && git push
+cd packaging/arch && makepkg -si
+```
 
 ## Verify
 
@@ -104,7 +117,7 @@ sudo pacman -R audient-id24-dkms-git
 ## Development
 
 ```sh
-bash tests/test-build-plan.sh                                  # offline
+bash tests/test-build-plan.sh                                  # offline, includes patch dry-runs
 ./build.sh "$(uname -r)" "/usr/lib/modules/$(uname -r)/build"  # real build into src/, no install
 ```
 
@@ -127,6 +140,6 @@ Nothing from this repository is submitted yet.
 
 ## License
 
-The kernel patch, `build.sh` and packaging are GPL-2.0-only
-(`LICENSES/GPL-2.0-only.txt`). The UCM profile is BSD-3-Clause
+The kernel patches, vendored kernel source, `build.sh`, tools and packaging are
+GPL-2.0-only (`LICENSES/GPL-2.0-only.txt`). The UCM profile is BSD-3-Clause
 (`LICENSES/BSD-3-Clause.txt`), as alsa-ucm-conf is.

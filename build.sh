@@ -2,87 +2,47 @@
 #
 # DKMS build step for snd-usb-audio with the Audient iD24 mixer map.
 #
-# Kernel headers ship no driver sources, so this downloads sound/usb for the
-# exact kernel being built from git.kernel.org, applies the patch written for
-# that kernel series, and builds snd-usb-audio out of tree. Every kernel gets
-# its own driver plus this patch and nothing else.
+# vendor/vX.Y holds the unmodified upstream sound/usb for kernel series X.Y
+# (tools/update-source.sh fetches it), and patches/vX.Y-*.patch is the patch
+# for that series. This copies the source for the kernel being built, applies
+# the patch and builds snd-usb-audio out of tree against the kernel's headers.
+# It never touches the network: pacman runs hooks, and so DKMS, in a network
+# namespace with only loopback.
 #
 # DKMS runs it as MAKE[0] with the kernel release and headers directory, and
 # appends its own make arguments (LLVM=1 on a clang-built kernel):
 #
 #   build.sh <kernelver> <kernel_source_dir> [make args...]
 #
-# Needs network access. Fails, leaving the kernel on its stock driver, when the
-# download fails or no patch applies.
+# A kernel from a series with no vendored source fails its build, and keeps its
+# stock driver, rather than getting another series' driver.
 set -euo pipefail
 
-readonly KERNEL_GIT=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
 readonly MODULE=snd-usb-audio
 readonly MODULE_DIR=sound/usb
 
-# Kernel release to upstream tag. The stable tree carries mainline tags too.
-#   7.3.0-rc2-1-cachyos-rc -> v7.3-rc2
-#   7.3.0-1-cachyos        -> v7.3
-#   7.2.5-1-cachyos        -> v7.2.5
-kernel_tag() {
-  if [[ ! $1 =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)(-rc[0-9]+)? ]]; then
+# Kernel release to series: 7.3.0-rc2-1-cachyos-rc -> v7.3
+kernel_series() {
+  if [[ ! $1 =~ ^([0-9]+)\.([0-9]+)\. ]]; then
     echo "build.sh: unrecognised kernel release '$1'" >&2
     return 1
   fi
-  local series="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
-  if [[ -n ${BASH_REMATCH[4]} ]]; then
-    echo "v$series${BASH_REMATCH[4]}"
-  elif [[ ${BASH_REMATCH[3]} == 0 ]]; then
-    echo "v$series"
-  else
-    echo "v$series.${BASH_REMATCH[3]}"
-  fi
+  echo "v${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
 }
 
-# patches/vX.Y-*.patch applies from kernel series X.Y on. Pick the newest one
-# that is not newer than the kernel.
-select_patch() {
-  local kernelver=$1 dir=$2 series p v best=""
-  if [[ ! $kernelver =~ ^([0-9]+\.[0-9]+)\. ]]; then
-    echo "build.sh: unrecognised kernel release '$kernelver'" >&2
+# series_patch <root> <series>: the one patch for a vendored series.
+series_patch() {
+  local root=$1 series=$2
+  if [[ ! -f $root/vendor/$series/TAG ]]; then
+    echo "build.sh: no vendored source for kernel series $series; run tools/update-source.sh" >&2
     return 1
   fi
-  series=${BASH_REMATCH[1]}
-  while IFS= read -r p; do
-    v=${p##*/v}
-    v=${v%%-*}
-    if [[ $(printf '%s\n' "$v" "$series" | sort -V | head -n1) == "$v" ]]; then
-      best=$p
-    fi
-  done < <(printf '%s\n' "$dir"/v*.patch | sort -V)
-  if [[ -z $best || ! -e $best ]]; then
-    echo "build.sh: no patch in $dir applies to kernel series $series" >&2
+  local patches=("$root/patches/$series"-*.patch)
+  if (( ${#patches[@]} != 1 )) || [[ ! -f ${patches[0]} ]]; then
+    echo "build.sh: expected exactly one patches/$series-*.patch" >&2
     return 1
   fi
-  printf '%s\n' "$best"
-}
-
-# The files (not subdirectories) directly in <dir> at <tag>, from cgit's plain
-# directory listing. Subdirectories are separate drivers and are not needed.
-list_dir() {
-  local tag=$1 dir=$2 listing
-  listing=$(curl --fail --silent --show-error --location --retry 6 "$KERNEL_GIT/plain/$dir/?h=$tag")
-  grep -oE "plain/$dir/[^/?']+\?h=" <<< "$listing" | sed -E 's|^plain/||; s|\?h=$||'
-}
-
-# fetch <tag> <dest> <path>...
-# One transfer at a time over a reused connection: git.kernel.org answers
-# concurrent requests with 503, and even sequential ones now and then, which
-# curl's backed-off retries ride out.
-fetch() {
-  local tag=$1 dest=$2 path
-  shift 2
-  local args=()
-  for path in "$@"; do
-    mkdir -p "$dest/$(dirname "$path")"
-    args+=(-o "$dest/$path" "$KERNEL_GIT/plain/$path?h=$tag")
-  done
-  curl --fail --silent --show-error --location --retry 6 "${args[@]}"
+  printf '%s\n' "${patches[0]}"
 }
 
 main() {
@@ -92,34 +52,28 @@ main() {
   fi
   local kernelver=$1 ksrc=$2
   shift 2
-  local here tag patch_file listing
-  here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-  tag=$(kernel_tag "$kernelver")
-  patch_file=$(select_patch "$kernelver" "$here/patches")
+  local root series patch_file
+  root=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+  series=$(kernel_series "$kernelver")
+  patch_file=$(series_patch "$root" "$series")
 
-  rm -rf "$here/src"
-  echo "build.sh: fetching $MODULE_DIR at $tag"
-  listing=$(list_dir "$tag" "$MODULE_DIR")
-  local sources=()
-  mapfile -t sources <<< "$listing"
-  if (( ${#sources[@]} == 0 )) || [[ -z ${sources[0]} ]]; then
-    echo "build.sh: empty listing for $MODULE_DIR at $tag" >&2
-    return 1
-  fi
-  fetch "$tag" "$here/src" "${sources[@]}"
-  echo "build.sh: applying ${patch_file##*/}"
-  patch -d "$here/src" -p1 --forward --no-backup-if-mismatch < "$patch_file"
+  rm -rf "$root/src"
+  mkdir -p "$root/src"
+  cp -r "$root/vendor/$series/." "$root/src/"
+  rm "$root/src/TAG"
+  echo "build.sh: $MODULE_DIR from $(< "$root/vendor/$series/TAG"), applying ${patch_file##*/}"
+  patch -d "$root/src" -p1 --forward --no-backup-if-mismatch < "$patch_file"
 
   # Keep upstream's object lists, with their CONFIG_ conditions, so the module
   # is linked from the same objects as the kernel's own. Drop the obj- lines:
-  # they also build snd-usbmidi-lib and descend into sibling drivers that were
-  # not downloaded.
-  local makefile="$here/src/$MODULE_DIR/Makefile"
+  # they also build snd-usbmidi-lib and descend into sibling drivers that are
+  # not vendored.
+  local makefile="$root/src/$MODULE_DIR/Makefile"
   grep -v '^obj-' "$makefile" > "$makefile.dkms"
   printf 'obj-m := %s.o\n' "$MODULE" >> "$makefile.dkms"
   mv "$makefile.dkms" "$makefile"
 
-  make -j"$(nproc)" -C "$ksrc" M="$here/src/$MODULE_DIR" "$@" modules
+  make -j"$(nproc)" -C "$ksrc" M="$root/src/$MODULE_DIR" "$@" modules
 }
 
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
