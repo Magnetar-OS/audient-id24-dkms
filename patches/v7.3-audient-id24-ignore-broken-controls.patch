@@ -1,0 +1,52 @@
+From: Dominikos Pritis <idominikos@outlook.com>
+Date: Tue, 15 Sep 2026 03:30:00 +0300
+Subject: [PATCH] ALSA: usb-audio: Ignore broken Audient iD24 mixer controls
+
+Commit c53f5bfc3700 ("ALSA: usb-audio: Add mixer map quirk for Audient
+iD24") renamed feature unit 12 so that userspace no longer adopts it as
+the master playback volume.  Two more units on the device produce
+controls that do not work.
+
+MIXER_UNIT 60's descriptor is malformed: bmMixerControls is all-ones with
+11 bytes of trailing junk and iMixer is 255 (lsusb prints "Junk at end of
+descriptor").  The generic parser turns that into a fully programmable
+16x6 matrix and creates sixteen 6-channel "ADAT-8 Volume" controls, named
+after a channel-name string.  The device ACKs SET_CUR on them with the
+UAC2 (ICN << 8 | OCN) addressing, but nothing documents what the cells
+mean, and alsactl restore rewrites all 96 of them to -127 dB on every
+boot and hot-plug.  Ignore the unit.
+
+FEATURE_UNIT 11 stalls GET_RANGE for its Input Gain control (control 11),
+so the driver falls back to a 0..1 placeholder range and logs
+"11:0: cannot get min/max values for control 11 (id 11)" on every plug
+and on every read of the control.  Ignore that control; the Phase
+Inverter control on the same unit works and stays.
+
+The same two entries were tested on an iD24 (bcdDevice 1.12) on 7.3-rc1
+together with the unit 12 rename: the ADAT-8 controls and the Input Gain
+placeholder are gone, alsactl store succeeds, and the min/max message no
+longer appears.
+---
+diff --git a/sound/usb/mixer_maps.c b/sound/usb/mixer_maps.c
+--- a/sound/usb/mixer_maps.c
++++ b/sound/usb/mixer_maps.c
+@@ -525,9 +525,19 @@
+  * output stays at 0 dB while the right one is attenuated, producing a
+  * stereo imbalance.  Rename it so that it is not picked up as the
+  * stream's master volume control.
++ *
++ * Mixer unit 60 has a malformed descriptor (bmMixerControls is all-ones
++ * with 11 bytes of trailing junk and iMixer is 255), so the generic parser
++ * turns it into a 16x6 matrix of "ADAT-8 Volume" controls named after a
++ * channel string; alsactl restore rewrites all 96 cells to -127 dB at every
++ * boot and hot-plug.  Feature unit 11 stalls GET_RANGE for Input Gain,
++ * which leaves a 0..1 placeholder range and logs "cannot get min/max
++ * values" on every read.  Drop both.
+  */
+ static const struct usbmix_name_map audient_id24_map[] = {
++	{ 11, NULL, 11 },		/* FU, Input Gain: GET_RANGE stalls */
+ 	{ 12, "Monitor Mix Playback" },	/* FU, partial channel coverage */
++	{ 60, NULL },			/* MU, malformed descriptor */
+ 	{}
+ };
+ 

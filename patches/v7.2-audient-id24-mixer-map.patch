@@ -1,0 +1,80 @@
+From 4e3d82f69a64cbe6a4dd9a86b348c756313c7b51 Mon Sep 17 00:00:00 2001
+From: Dominikos Pritis <idominikos@outlook.com>
+Date: Tue, 1 Sep 2026 22:59:27 +0300
+Subject: [PATCH] ALSA: usb-audio: Add Audient iD24 mixer map
+
+The Audient iD24 (2708:000d) has the same AudioControl topology as the
+iD14: FEATURE_UNIT 12 advertises Volume on 4 of the 6 channels of
+MIXER_UNIT 60, sits on the monitor mixer branch and is traced through to
+the Speaker output terminal, so it is exported as "Speaker Playback
+Volume" and userspace takes it for the stream master.  Apply the same
+rename to "Monitor Mix Playback Volume" as commit 9c0564fcc21a ("ALSA:
+usb-audio: Rename the Audient iD14 monitor mix volume control").
+
+MIXER_UNIT 60's descriptor is malformed: bmMixerControls is all-ones
+with 11 bytes of trailing junk and iMixer is 255 (lsusb prints "Junk at
+end of descriptor").  The generic parser turns that into a fully
+programmable 16x6 matrix and creates sixteen 6-channel "ADAT-8 Volume"
+controls, named after a channel-name string.  The device ACKs SET_CUR on
+them with the UAC2 (ICN << 8 | OCN) addressing, but nothing documents
+what the cells mean, and alsactl restore rewrites all 96 of them to
+-127 dB on every boot and hot-plug.  Ignore the unit.
+
+FEATURE_UNIT 11 stalls GET_RANGE for its Input Gain control (control
+11), so the driver falls back to a 0..1 placeholder range and logs
+"11:0: cannot get min/max values for control 11 (id 11)" on every
+plug and on every read of the control.  Ignore that control; the Phase
+Inverter control on the same unit works and stays.
+
+Tested on an iD24 (bcdDevice 1.12) on 7.3-rc1: the card now exposes
+Monitor Mix Playback Volume, the ADAT-8 controls and the Input Gain
+placeholder are gone, alsactl store succeeds, and the min/max message
+no longer appears.
+---
+ sound/usb/mixer_maps.c | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)
+
+diff --git a/sound/usb/mixer_maps.c b/sound/usb/mixer_maps.c
+index ace4cca..9b76b3f 100644
+--- a/sound/usb/mixer_maps.c
++++ b/sound/usb/mixer_maps.c
+@@ -518,6 +518,24 @@ static const struct usbmix_name_map audient_id14_map[] = {
+ 	{}
+ };
+ 
++/* Audient iD24: FU 12 has the same shape as on the iD14 -- Volume on 4 of
++ * the 6 channels of MIXER_UNIT 60, on the monitor mixer branch, traced to
++ * the Speaker terminal -- so it gets the same non-standard name for the
++ * same reason.  MIXER_UNIT 60 itself has a malformed descriptor (the
++ * bmMixerControls bitmap is all-ones with 11 bytes of trailing junk and
++ * iMixer is 255), so the generic parser turns it into a 16x6 matrix of
++ * "ADAT-8 Volume" controls named after a channel string; alsactl restore
++ * rewrites all 96 cells to -127 dB at every boot and hot-plug.  FU 11
++ * stalls GET_RANGE for Input Gain, which leaves a 0..1 placeholder range
++ * and logs "cannot get min/max values" on every read.  Drop both.
++ */
++static const struct usbmix_name_map audient_id24_map[] = {
++	{ 11, NULL, 11 },		/* FU, Input Gain: GET_RANGE stalls */
++	{ 12, "Monitor Mix Playback" },	/* FU, partial coverage */
++	{ 60, NULL },			/* MU, malformed descriptor */
++	{}
++};
++
+ /*
+  * Control map entries
+  */
+@@ -611,6 +629,11 @@ static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
+ 		.id = USB_ID(0x2708, 0x0008),
+ 		.map = audient_id14_map,
+ 	},
++	{
++		/* Audient iD24 */
++		.id = USB_ID(0x2708, 0x000d),
++		.map = audient_id24_map,
++	},
+ 	{
+ 		/* KEF X300A */
+ 		.id = USB_ID(0x27ac, 0x1000),
+-- 
+2.55.0
+

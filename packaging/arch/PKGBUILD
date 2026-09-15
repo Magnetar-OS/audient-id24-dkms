@@ -1,0 +1,58 @@
+# Maintainer: Dominikos Pritis <hey@myroomie.gr>
+#
+# A -git package because nothing is tagged yet.
+#
+# Two things for one device, in one package because neither is useful without
+# an iD24 and they were tested together:
+#
+#  - the snd-usb-audio mixer map, as DKMS source. The package carries no driver
+#    source: build.sh downloads sound/usb for whatever kernel DKMS builds
+#    against and applies the patch there. So a kernel update needs network
+#    access, and a kernel series the patch does not cover fails its DKMS build
+#    out loud instead of shipping another kernel's driver.
+#  - the UCM profile, next to alsa-ucm-conf's own Audient profiles.
+#
+# alsa-ucm-conf does not own any Audient-iD24 file today. When upstream ships
+# one, pacman reports a file conflict on upgrade; that is the signal to drop
+# ucm2/ from this package.
+pkgname=audient-id24-dkms-git
+_dkmsname=audient-id24
+pkgver=r0.g0000000
+pkgrel=1
+pkgdesc="Audient iD24 support: snd-usb-audio mixer map (DKMS) and UCM profile"
+arch=('any')
+url="https://github.com/Magnetar-OS/audient-id24-dkms"
+license=('GPL-2.0-only' 'BSD-3-Clause')
+depends=('dkms' 'curl' 'patch' 'alsa-ucm-conf')
+makedepends=('git')
+provides=('audient-id24-dkms')
+conflicts=('audient-id24-dkms')
+install="$pkgname.install"
+source=("$pkgname::git+https://github.com/Magnetar-OS/audient-id24-dkms.git")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$srcdir/$pkgname"
+  printf "r%s.g%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+check() {
+  cd "$srcdir/$pkgname"
+  bash tests/test-build-plan.sh
+}
+
+package() {
+  cd "$srcdir/$pkgname"
+
+  local dest="$pkgdir/usr/src/$_dkmsname-$pkgver"
+  install -Dm644 dkms.conf "$dest/dkms.conf"
+  sed -i "s/@PKGVER@/$pkgver/" "$dest/dkms.conf"
+  install -Dm755 build.sh "$dest/build.sh"
+  install -Dm644 -t "$dest/patches" patches/*.patch
+
+  install -Dm644 -t "$pkgdir/usr/share/alsa/ucm2/USB-Audio/Audient" ucm2/USB-Audio/Audient/*.conf
+  install -Dm644 -t "$pkgdir/usr/share/alsa/ucm2/USB-Audio/conf.d" ucm2/USB-Audio/conf.d/*.conf
+
+  install -Dm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSES/*
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}
