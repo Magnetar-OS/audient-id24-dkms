@@ -71,7 +71,7 @@ main() {
     echo "update-source.sh: no patches/$series-*.patch yet; write one against vendor/$series" >&2
     return 1
   fi
-  patch -d "$root/vendor/$series" -p1 --dry-run < "${patches[0]}"
+  patch -d "$root/vendor/$series" -p1 --fuzz=0 --dry-run < "${patches[0]}"
 }
 
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then

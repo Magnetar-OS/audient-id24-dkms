@@ -35,10 +35,10 @@ no longer appears.
  1 file changed, 23 insertions(+)
 
 diff --git a/sound/usb/mixer_maps.c b/sound/usb/mixer_maps.c
-index ace4cca..9b76b3f 100644
+index ce27fc8..cfa6485 100644
 --- a/sound/usb/mixer_maps.c
 +++ b/sound/usb/mixer_maps.c
-@@ -518,6 +518,24 @@ static const struct usbmix_name_map audient_id14_map[] = {
+@@ -505,6 +505,24 @@ static const struct usbmix_connector_map gigabyte_b450_connector_map[] = {
  	{}
  };
  
@@ -63,9 +63,9 @@ index ace4cca..9b76b3f 100644
  /*
   * Control map entries
   */
-@@ -611,6 +629,11 @@ static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
- 		.id = USB_ID(0x2708, 0x0008),
- 		.map = audient_id14_map,
+@@ -598,6 +616,11 @@ static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
+ 		.id = USB_ID(0x25c4, 0x0003),
+ 		.map = scms_usb3318_map,
  	},
 +	{
 +		/* Audient iD24 */
@@ -73,8 +73,8 @@ index ace4cca..9b76b3f 100644
 +		.map = audient_id24_map,
 +	},
  	{
- 		/* KEF X300A */
- 		.id = USB_ID(0x27ac, 0x1000),
+ 		/* Bose Companion 5 */
+ 		.id = USB_ID(0x05a7, 0x1020),
 -- 
 2.55.0
 

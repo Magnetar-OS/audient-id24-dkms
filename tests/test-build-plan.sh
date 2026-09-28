@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
 # Offline checks: kernel release and tag to series mapping, patch selection,
-# and that every vendored series has a patch that applies to its source.
+# and that every vendored series has a patch that applies to its source with
+# no fuzz, as build.sh requires.
 set -euo pipefail
 # shellcheck source-path=SCRIPTDIR/..
 
@@ -42,7 +43,7 @@ expect "<error>" series_patch "$root" v7.1
 for dir in "$root"/vendor/v*/; do
   series=$(basename "$dir")
   if patch_file=$(series_patch "$root" "$series" 2>&1) &&
-     patch -d "$dir" -p1 --dry-run --silent < "$patch_file" > /dev/null; then
+     patch -d "$dir" -p1 --fuzz=0 --dry-run --silent < "$patch_file" > /dev/null; then
     echo "ok    ${patch_file##*/} applies to vendor/$series ($(< "$dir/TAG"))"
   else
     echo "FAIL  vendor/$series: $patch_file"

@@ -62,7 +62,9 @@ main() {
   cp -r "$root/vendor/$series/." "$root/src/"
   rm "$root/src/TAG"
   echo "build.sh: $MODULE_DIR from $(< "$root/vendor/$series/TAG"), applying ${patch_file##*/}"
-  patch -d "$root/src" -p1 --forward --no-backup-if-mismatch < "$patch_file"
+  # --fuzz=0: a hunk whose context has drifted fails the build instead of
+  # landing wherever two lines of context still match.
+  patch -d "$root/src" -p1 --forward --fuzz=0 --no-backup-if-mismatch < "$patch_file"
 
   # Keep upstream's object lists, with their CONFIG_ conditions, so the module
   # is linked from the same objects as the kernel's own. Drop the obj- lines:
