@@ -3,13 +3,17 @@ From: Dominikos Pritis <idominikos@outlook.com>
 Date: Tue, 1 Sep 2026 22:59:27 +0300
 Subject: [PATCH] ALSA: usb-audio: Add Audient iD24 mixer map
 
-The Audient iD24 (2708:000d) has the same AudioControl topology as the
-iD14: FEATURE_UNIT 12 advertises Volume on 4 of the 6 channels of
-MIXER_UNIT 60, sits on the monitor mixer branch and is traced through to
-the Speaker output terminal, so it is exported as "Speaker Playback
-Volume" and userspace takes it for the stream master.  Apply the same
-rename to "Monitor Mix Playback Volume" as commit 9c0564fcc21a ("ALSA:
-usb-audio: Rename the Audient iD14 monitor mix volume control").
+For 7.2, which has no Audient mixer map at all.  From 7.3-rc2 upstream
+carries the first entry below by itself (commit c53f5bfc3700, "ALSA:
+usb-audio: Add mixer map quirk for Audient iD24"), and the 7.3 patch adds
+only the other two.
+
+FEATURE_UNIT 12 advertises Volume on 4 of the 6 channels of MIXER_UNIT
+60, sits on the monitor mixer branch and is traced through to the
+Speaker output terminal, so it is exported as "Speaker Playback Volume"
+and userspace takes it for the stream master, attenuating the main pair
+asymmetrically below 0 dB.  Rename it to "Monitor Mix Playback Volume",
+the name upstream gives it from 7.3-rc2.
 
 MIXER_UNIT 60's descriptor is malformed: bmMixerControls is all-ones
 with 11 bytes of trailing junk and iMixer is 255 (lsusb prints "Junk at
@@ -26,32 +30,35 @@ FEATURE_UNIT 11 stalls GET_RANGE for its Input Gain control (control
 plug and on every read of the control.  Ignore that control; the Phase
 Inverter control on the same unit works and stays.
 
-Tested on an iD24 (bcdDevice 1.12) on 7.3-rc1: the card now exposes
-Monitor Mix Playback Volume, the ADAT-8 controls and the Input Gain
-placeholder are gone, alsactl store succeeds, and the min/max message
-no longer appears.
+The map was tested on an iD24 (bcdDevice 1.12) on 7.3-rc1: the card
+exposes Monitor Mix Playback Volume, the ADAT-8 controls and the Input
+Gain placeholder are gone, alsactl store succeeds, and the min/max
+message no longer appears.  On 7.2 it builds against 7.2.8 and adds the
+same entries to the same table.
 ---
- sound/usb/mixer_maps.c | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ sound/usb/mixer_maps.c | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)
 
 diff --git a/sound/usb/mixer_maps.c b/sound/usb/mixer_maps.c
-index ce27fc8..cfa6485 100644
+index ce27fc8..4649a4b 100644
 --- a/sound/usb/mixer_maps.c
 +++ b/sound/usb/mixer_maps.c
-@@ -505,6 +505,24 @@ static const struct usbmix_connector_map gigabyte_b450_connector_map[] = {
+@@ -505,6 +505,26 @@ static const struct usbmix_connector_map gigabyte_b450_connector_map[] = {
  	{}
  };
  
-+/* Audient iD24: FU 12 has the same shape as on the iD14 -- Volume on 4 of
-+ * the 6 channels of MIXER_UNIT 60, on the monitor mixer branch, traced to
-+ * the Speaker terminal -- so it gets the same non-standard name for the
-+ * same reason.  MIXER_UNIT 60 itself has a malformed descriptor (the
-+ * bmMixerControls bitmap is all-ones with 11 bytes of trailing junk and
-+ * iMixer is 255), so the generic parser turns it into a 16x6 matrix of
-+ * "ADAT-8 Volume" controls named after a channel string; alsactl restore
-+ * rewrites all 96 cells to -127 dB at every boot and hot-plug.  FU 11
-+ * stalls GET_RANGE for Input Gain, which leaves a 0..1 placeholder range
-+ * and logs "cannot get min/max values" on every read.  Drop both.
++/* Audient iD24: FU 12 has Volume on only 4 of the 6 channels of MIXER_UNIT
++ * 60, sits on the monitor mixer branch and is traced to the Speaker
++ * terminal, so userspace adopts it as the stream master and attenuates the
++ * main pair asymmetrically below 0 dB.  Give it a non-standard name, as
++ * upstream does from 7.3-rc2.  MIXER_UNIT 60 itself has a malformed
++ * descriptor (the bmMixerControls bitmap is all-ones with 11 bytes of
++ * trailing junk and iMixer is 255), so the generic parser turns it into a
++ * 16x6 matrix of "ADAT-8 Volume" controls named after a channel string;
++ * alsactl restore rewrites all 96 cells to -127 dB at every boot and
++ * hot-plug.  FU 11 stalls GET_RANGE for Input Gain, which leaves a 0..1
++ * placeholder range and logs "cannot get min/max values" on every read.
++ * Drop both.
 + */
 +static const struct usbmix_name_map audient_id24_map[] = {
 +	{ 11, NULL, 11 },		/* FU, Input Gain: GET_RANGE stalls */
@@ -63,7 +70,7 @@ index ce27fc8..cfa6485 100644
  /*
   * Control map entries
   */
-@@ -598,6 +616,11 @@ static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
+@@ -598,6 +618,11 @@ static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
  		.id = USB_ID(0x25c4, 0x0003),
  		.map = scms_usb3318_map,
  	},
