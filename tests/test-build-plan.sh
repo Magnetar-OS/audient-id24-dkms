@@ -59,9 +59,13 @@ trap 'rm -rf -- "$fixture"' EXIT
 mkdir -p "$fixture/vendor/v7.3"
 echo v7.3-rc3 > "$fixture/vendor/v7.3/TAG"
 warning="build.sh: warning: vendor/v7.3 is upstream v7.3-rc3, older than kernel 7.3.0-rc4-1-cachyos-rc; the fixes upstream made after v7.3-rc3 are missing from this module. Run tools/update-source.sh v7.3-rc4 and rebuild the package."
-expect "$warning" vendor_lag_warning "$fixture" 7.3.0-rc4-1-cachyos-rc
-expect ""         vendor_lag_warning "$fixture" 7.3.0-rc3-1-cachyos-rc
-expect ""         vendor_lag_warning "$fixture" 7.3.0-rc2-1-cachyos-rc
+# The warning goes to stderr: pacman's DKMS hook discards the stdout of
+# `dkms install`, and with it POST_INSTALL's.
+# shellcheck disable=SC2329 # invoked through expect
+lag_stderr() { { vendor_lag_warning "$@" > /dev/null; } 2>&1; }
+expect "$warning" lag_stderr "$fixture" 7.3.0-rc4-1-cachyos-rc
+expect ""         lag_stderr "$fixture" 7.3.0-rc3-1-cachyos-rc
+expect ""         lag_stderr "$fixture" 7.3.0-rc2-1-cachyos-rc
 
 # update-source.sh checks a refreshed series with the same one-patch rule as
 # build.sh: two patches for a series fail the check.

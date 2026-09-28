@@ -96,13 +96,14 @@ vendor_lag_warning() {
   vendored=$(< "$root/vendor/$series/TAG")
   ktag=$(kernel_tag "$kernelver") || return 0
   if [[ $(tag_is_older "$vendored" "$ktag") == yes ]]; then
-    echo "build.sh: warning: vendor/$series is upstream $vendored, older than kernel $kernelver; the fixes upstream made after $vendored are missing from this module. Run tools/update-source.sh $ktag and rebuild the package."
+    echo "build.sh: warning: vendor/$series is upstream $vendored, older than kernel $kernelver; the fixes upstream made after $vendored are missing from this module. Run tools/update-source.sh $ktag and rebuild the package." >&2
   fi
 }
 
 main() {
-  # DKMS runs this as POST_INSTALL, whose output reaches the pacman log;
-  # MAKE[0]'s output only reaches make.log.
+  # DKMS runs this as POST_INSTALL, whose stderr reaches the pacman output
+  # (the pacman hook discards dkms's stdout); MAKE[0]'s output only reaches
+  # make.log.
   if [[ ${1-} == --check-vendor ]]; then
     local root
     root=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
