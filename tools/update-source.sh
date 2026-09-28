@@ -10,6 +10,10 @@
 # itself never downloads anything.
 set -euo pipefail
 
+# series_patch: the same one-patch-per-series rule the DKMS build applies.
+# shellcheck source=build.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../build.sh"
+
 readonly KERNEL_GIT=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
 readonly SOURCE_DIR=sound/usb
 
@@ -68,12 +72,18 @@ main() {
   cp -r "$staging/." "$root/vendor/$series/"
   echo "update-source.sh: vendor/$series now holds $SOURCE_DIR at $tag (${#sources[@]} files)"
 
-  local patches=("$root/patches/$series"-*.patch)
-  if [[ ! -f ${patches[0]} ]]; then
-    echo "update-source.sh: no patches/$series-*.patch yet; write one against vendor/$series" >&2
+  check_patch "$root" "$series"
+}
+
+# check_patch <root> <series>: the series' one patch applies to its vendored
+# source with no fuzz, as build.sh will apply it.
+check_patch() {
+  local root=$1 series=$2 patch_file
+  if ! patch_file=$(series_patch "$root" "$series"); then
+    echo "update-source.sh: write patches/$series-*.patch against vendor/$series" >&2
     return 1
   fi
-  patch -d "$root/vendor/$series" -p1 --fuzz=0 --dry-run < "${patches[0]}"
+  patch -d "$root/vendor/$series" -p1 --fuzz=0 --dry-run < "$patch_file"
 }
 
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then

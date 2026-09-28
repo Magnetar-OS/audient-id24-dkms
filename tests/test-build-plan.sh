@@ -7,8 +7,7 @@ set -euo pipefail
 # shellcheck source-path=SCRIPTDIR/..
 
 root=$(cd "$(dirname "$0")/.." && pwd)
-# shellcheck source=build.sh
-source "$root/build.sh"
+# update-source.sh sources build.sh as well.
 # shellcheck source=tools/update-source.sh
 source "$root/tools/update-source.sh"
 
@@ -63,6 +62,24 @@ warning="build.sh: warning: vendor/v7.3 is upstream v7.3-rc3, older than kernel 
 expect "$warning" vendor_lag_warning "$fixture" 7.3.0-rc4-1-cachyos-rc
 expect ""         vendor_lag_warning "$fixture" 7.3.0-rc3-1-cachyos-rc
 expect ""         vendor_lag_warning "$fixture" 7.3.0-rc2-1-cachyos-rc
+
+# update-source.sh checks a refreshed series with the same one-patch rule as
+# build.sh: two patches for a series fail the check.
+mkdir -p "$fixture/patches"
+cp "$root/patches/v7.3-"*.patch "$fixture/patches/v7.3-a.patch"
+cp "$root/patches/v7.3-"*.patch "$fixture/patches/v7.3-b.patch"
+if check_patch "$fixture" v7.3 > /dev/null 2>&1; then
+  echo "FAIL  check_patch accepts two patches for one series"
+  failed=1
+else
+  echo "ok    check_patch rejects two patches for one series"
+fi
+if check_patch "$root" v7.3 > /dev/null 2>&1; then
+  echo "ok    check_patch $root v7.3"
+else
+  echo "FAIL  check_patch $root v7.3"
+  failed=1
+fi
 
 for dir in "$root"/vendor/v*/; do
   series=$(basename "$dir")
