@@ -15,6 +15,11 @@ Notable changes, in the format of [Keep a Changelog](https://keepachangelog.com/
 
 ### Added
 
+- **A kernel newer than the vendored driver is reported.** Each DKMS install
+  prints a warning into the pacman output when `vendor/<series>/TAG` is an
+  older upstream tag than the kernel being built, naming the tag to pass to
+  `tools/update-source.sh`. Before, the build silently produced a driver
+  older than the stock one it replaced.
 - **The iD24's mixer stops fighting desktop audio, on every kernel.** DKMS
   builds `snd-usb-audio` with the iD24 mixer map for each installed kernel.
   The monitor-mix control is no longer taken for the stream master, the

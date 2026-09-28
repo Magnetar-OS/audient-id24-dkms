@@ -59,7 +59,12 @@ the source:
 - The module replaces `snd-usb-audio` for every USB audio device on the
   machine. Apart from the iD24 map it is upstream's driver at the vendored tag.
 - Every kernel in a series runs the vendored driver version, not necessarily
-  its own point release's.
+  its own point release's. When the vendored tag is older than the kernel,
+  the module lacks upstream's fixes from in between while replacing a stock
+  module that has them, so each DKMS install prints a warning into the pacman
+  output naming the tag to vendor, e.g. `build.sh: warning: vendor/v7.3 is
+  upstream v7.3-rc5, older than kernel 7.3.0-rc6-…`. Re-vendor then (see
+  Update).
 - A kernel from a series with no `vendor/` directory fails its DKMS build in
   the pacman output and keeps its stock driver until the series is added.
 - The module installs to `updates/dkms`. While it is installed, DKMS keeps
@@ -90,8 +95,12 @@ systemctl --user start pipewire.socket pipewire-pulse.socket pipewire pipewire-p
 ## Update
 
 Kernel updates within a vendored series rebuild the module automatically.
+If the pacman output then shows the `build.sh: warning: vendor/…` line, the
+new kernel is newer than the vendored driver; refresh it with the tag the
+warning names.
 
-For a new kernel series, or an upstream change to the driver:
+For a new kernel series, a newer point release or rc, or an upstream change to
+the driver:
 
 ```sh
 tools/update-source.sh v7.4-rc1   # fetches vendor/v7.4, dry-runs patches/v7.4-*.patch

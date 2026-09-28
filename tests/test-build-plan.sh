@@ -40,6 +40,30 @@ expect "$root/patches/v7.2-audient-id24-mixer-map.patch" series_patch "$root" v7
 expect "$root/patches/v7.3-audient-id24-ignore-broken-controls.patch" series_patch "$root" v7.3
 expect "<error>" series_patch "$root" v7.1
 
+expect v7.3-rc4 kernel_tag 7.3.0-rc4-1-cachyos-rc
+expect v7.3     kernel_tag 7.3.0-1-cachyos
+expect v7.2.8   kernel_tag 7.2.8-1-cachyos
+expect "<error>" kernel_tag not-a-kernel
+
+expect yes tag_is_older v7.3-rc3 v7.3-rc4
+expect yes tag_is_older v7.3-rc5 v7.3
+expect yes tag_is_older v7.3     v7.3.1
+expect yes tag_is_older v7.2.6   v7.2.8
+expect no  tag_is_older v7.3-rc5 v7.3-rc4
+expect no  tag_is_older v7.3-rc5 v7.3-rc5
+expect no  tag_is_older v7.2.8   v7.2.8
+
+# A fixture series whose vendored tag is v7.3-rc3: kernels past it warn,
+# kernels at or before it do not.
+fixture=$(mktemp -d)
+trap 'rm -rf -- "$fixture"' EXIT
+mkdir -p "$fixture/vendor/v7.3"
+echo v7.3-rc3 > "$fixture/vendor/v7.3/TAG"
+warning="build.sh: warning: vendor/v7.3 is upstream v7.3-rc3, older than kernel 7.3.0-rc4-1-cachyos-rc; the fixes upstream made after v7.3-rc3 are missing from this module. Run tools/update-source.sh v7.3-rc4 and rebuild the package."
+expect "$warning" vendor_lag_warning "$fixture" 7.3.0-rc4-1-cachyos-rc
+expect ""         vendor_lag_warning "$fixture" 7.3.0-rc3-1-cachyos-rc
+expect ""         vendor_lag_warning "$fixture" 7.3.0-rc2-1-cachyos-rc
+
 for dir in "$root"/vendor/v*/; do
   series=$(basename "$dir")
   if patch_file=$(series_patch "$root" "$series" 2>&1) &&

@@ -14,6 +14,11 @@
 #
 #   build.sh <kernelver> <kernel_source_dir> [make args...]
 #
+# and as POST_INSTALL, to print a warning into the pacman output when the
+# vendored source is older than the kernel it was built for:
+#
+#   build.sh --check-vendor <kernelver>
+#
 # A kernel from a series with no vendored source fails its build, and keeps its
 # stock driver, rather than getting another series' driver.
 set -euo pipefail
@@ -45,7 +50,65 @@ series_patch() {
   printf '%s\n' "${patches[0]}"
 }
 
+# Kernel release to the upstream tag it is built from:
+# 7.3.0-rc4-1-cachyos-rc -> v7.3-rc4, 7.3.0-1-cachyos -> v7.3,
+# 7.2.8-1-cachyos -> v7.2.8
+kernel_tag() {
+  if [[ ! $1 =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)(-rc([0-9]+))? ]]; then
+    echo "build.sh: unrecognised kernel release '$1'" >&2
+    return 1
+  fi
+  local tag="v${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+  if [[ -n ${BASH_REMATCH[5]} ]]; then
+    tag+="-rc${BASH_REMATCH[5]}"
+  elif (( BASH_REMATCH[3] > 0 )); then
+    tag+=".${BASH_REMATCH[3]}"
+  fi
+  echo "$tag"
+}
+
+# Order key of a tag within its series: rcs sort before the release, and
+# the release before its point releases.
+tag_key() {
+  [[ $1 =~ ^v[0-9]+\.[0-9]+(\.([0-9]+)|-rc([0-9]+))?$ ]] || return 1
+  if [[ -n ${BASH_REMATCH[3]} ]]; then
+    echo "$(( BASH_REMATCH[3] ))"
+  else
+    echo "$(( 1000 + ${BASH_REMATCH[2]:-0} ))"
+  fi
+}
+
+# tag_is_older <a> <b>: "yes" if tag a comes before tag b in one series.
+tag_is_older() {
+  local a b
+  a=$(tag_key "$1") && b=$(tag_key "$2") || return 1
+  if (( a < b )); then echo yes; else echo no; fi
+}
+
+# vendor_lag_warning <root> <kernelver>: warn when the vendored source for
+# the kernel's series is an older upstream tag than the kernel itself. The
+# module then lacks the fixes upstream made in between, while replacing a
+# stock module that has them. Prints nothing when the vendor is current.
+vendor_lag_warning() {
+  local root=$1 kernelver=$2 series vendored ktag
+  series=$(kernel_series "$kernelver") || return 0
+  [[ -f $root/vendor/$series/TAG ]] || return 0
+  vendored=$(< "$root/vendor/$series/TAG")
+  ktag=$(kernel_tag "$kernelver") || return 0
+  if [[ $(tag_is_older "$vendored" "$ktag") == yes ]]; then
+    echo "build.sh: warning: vendor/$series is upstream $vendored, older than kernel $kernelver; the fixes upstream made after $vendored are missing from this module. Run tools/update-source.sh $ktag and rebuild the package."
+  fi
+}
+
 main() {
+  # DKMS runs this as POST_INSTALL, whose output reaches the pacman log;
+  # MAKE[0]'s output only reaches make.log.
+  if [[ ${1-} == --check-vendor ]]; then
+    local root
+    root=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    vendor_lag_warning "$root" "${2:?usage: build.sh --check-vendor <kernelver>}"
+    return 0
+  fi
   if (( $# < 2 )); then
     echo "usage: build.sh <kernelver> <kernel_source_dir> [make args...]" >&2
     return 2
@@ -56,6 +119,7 @@ main() {
   root=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
   series=$(kernel_series "$kernelver")
   patch_file=$(series_patch "$root" "$series")
+  vendor_lag_warning "$root" "$kernelver"
 
   rm -rf "$root/src"
   mkdir -p "$root/src"
