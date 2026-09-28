@@ -57,8 +57,10 @@ main() {
   done
   # One transfer at a time over a reused connection: git.kernel.org answers
   # concurrent requests with 503, and sequential ones now and then, which
-  # curl's backed-off retries ride out.
-  curl --fail --silent --show-error --location --retry 6 "${args[@]}"
+  # curl's backed-off retries ride out. --fail-early: with several URLs curl
+  # otherwise exits with the last transfer's status, so a file that failed
+  # earlier would silently go missing from vendor/.
+  curl --fail --fail-early --silent --show-error --location --retry 6 "${args[@]}"
   printf '%s\n' "$tag" > "$staging/TAG"
 
   rm -rf "$root/vendor/$series"
