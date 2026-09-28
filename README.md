@@ -53,8 +53,8 @@ the source:
 
 | Series | Vendored tag | Patch                                            |
 |--------|--------------|--------------------------------------------------|
-| v7.2   | `v7.2.6`     | `v7.2-audient-id24-mixer-map.patch`              |
-| v7.3   | `v7.3-rc3`   | `v7.3-audient-id24-ignore-broken-controls.patch` |
+| v7.2   | `v7.2.8`     | `v7.2-audient-id24-mixer-map.patch`              |
+| v7.3   | `v7.3-rc5`   | `v7.3-audient-id24-ignore-broken-controls.patch` |
 
 - The module replaces `snd-usb-audio` for every USB audio device on the
   machine. Apart from the iD24 map it is upstream's driver at the vendored tag.

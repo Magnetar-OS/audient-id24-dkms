@@ -4,6 +4,15 @@ Notable changes, in the format of [Keep a Changelog](https://keepachangelog.com/
 
 ## [Unreleased]
 
+### Fixed
+
+- **The replacement driver no longer lags the kernel's own.** The vendored
+  `sound/usb` moves to v7.2.8 and v7.3-rc5, which bring upstream's
+  `max_urb_packs` clamp before the endpoint `memcpy` (an array overrun) and
+  the ready-list race fix in `endpoint.c`, plus the rc4 implicit-feedback and
+  mixer-map quirks. Before this, the module DKMS built for 7.2.8 and 7.3-rc4
+  was older than the stock one it replaced, for every USB audio device.
+
 ### Added
 
 - **The iD24's mixer stops fighting desktop audio, on every kernel.** DKMS
@@ -13,8 +22,8 @@ Notable changes, in the format of [Keep a Changelog](https://keepachangelog.com/
   dmesg spam.
 - Patches for kernel series 7.2, with the whole map, and 7.3, with only the
   two removals on top of the rename upstream added in 7.3-rc2.
-- The build is offline, from vendored upstream `sound/usb` for 7.2 (v7.2.6)
-  and 7.3 (v7.3-rc3), so it works inside pacman's network-less hooks. A kernel
+- The build is offline, from vendored upstream `sound/usb` for 7.2 (v7.2.8)
+  and 7.3 (v7.3-rc5), so it works inside pacman's network-less hooks. A kernel
   from a series with no vendored source fails loudly and keeps its stock
   driver.
 - `tools/update-source.sh <tag>` vendors a new series or a newer upstream
