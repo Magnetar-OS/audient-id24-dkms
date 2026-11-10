@@ -28,9 +28,9 @@ An `audient_id24_map` in `sound/usb/mixer_maps.c` that:
   with it the `cannot get min/max values for control 11` dmesg spam.
 
 Upstream added the rename by itself in 7.3-rc2 (c53f5bfc3700, "ALSA:
-usb-audio: Add mixer map quirk for Audient iD24"), so the 7.3 patch only adds
-the two removals on top of upstream's map, while the 7.2 patch adds the whole
-map. The full analysis is the commit message at the top of each patch.
+usb-audio: Add mixer map quirk for Audient iD24"), so the 7.3 and 7.4 patches
+only add the two removals on top of upstream's map, while the 7.2 patch adds
+the whole map. The full analysis is the commit message at the top of each patch.
 
 ## UCM profile
 
@@ -64,8 +64,12 @@ the source:
 
 | Series | Vendored tag | Patch                                            |
 |--------|--------------|--------------------------------------------------|
-| v7.2   | `v7.2.8`     | `v7.2-audient-id24-mixer-map.patch`              |
-| v7.3   | `v7.3-rc5`   | `v7.3-audient-id24-ignore-broken-controls.patch` |
+| v7.2   | `v7.2.15`    | `v7.2-audient-id24-mixer-map.patch`              |
+| v7.3   | `v7.3.3`     | `v7.3-audient-id24-ignore-broken-controls.patch` |
+| v7.4   | `v7.4-rc2`   | `v7.4-audient-id24-ignore-broken-controls.patch` |
+
+7.2 is end of life upstream and v7.2.15 is its last release, so `vendor/v7.2`
+needs no further refreshes.
 
 - The module replaces `snd-usb-audio` for every USB audio device on the
   machine. Apart from the iD24 map it is upstream's driver at the vendored tag.
@@ -114,8 +118,8 @@ For a new kernel series, a newer point release or rc, or an upstream change to
 the driver:
 
 ```sh
-tools/update-source.sh v7.4-rc1   # fetches vendor/v7.4, dry-runs patches/v7.4-*.patch
-# no patches/v7.4-*.patch yet? copy the newest one and fix it against vendor/v7.4
+tools/update-source.sh v7.5-rc1   # fetches vendor/v7.5, dry-runs patches/v7.5-*.patch
+# no patches/v7.5-*.patch yet? copy the newest one and fix it against vendor/v7.5
 bash tests/test-build-plan.sh
 git add vendor patches && git commit && git push
 cd packaging/arch && makepkg -si
@@ -152,7 +156,7 @@ Validate UCM edits with alsa-tests:
 Nothing from this repository is submitted yet.
 
 - Kernel: the rename is upstream since 7.3-rc2.
-  `patches/v7.3-audient-id24-ignore-broken-controls.patch` is the remaining
+  `patches/v7.4-audient-id24-ignore-broken-controls.patch` is the remaining
   change, written on top of it, and ready for `git send-email
   --to=linux-sound@vger.kernel.org --cc=tiwai@suse.de --cc=perex@perex.cz`
   once it has a Signed-off-by.
