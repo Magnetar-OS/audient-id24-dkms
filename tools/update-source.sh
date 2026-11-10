@@ -14,7 +14,8 @@ set -euo pipefail
 # shellcheck source=build.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../build.sh"
 
-readonly KERNEL_GIT=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+readonly STABLE_GIT=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+readonly MAINLINE_GIT=https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
 readonly SOURCE_DIR=sound/usb
 
 # Tag to series: v7.3-rc3 -> v7.3, v7.2.5 -> v7.2, v7.3 -> v7.3
@@ -26,11 +27,18 @@ tag_series() {
   echo "v${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
 }
 
+# The tree that has <tag>: point releases (v7.3.3) exist only in stable;
+# releases and rcs (v7.4, v7.4-rc2) are tagged in mainline and reach the
+# stable tree days later, so a fresh one is missing there.
+tag_repo() {
+  if [[ $1 =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then echo "$STABLE_GIT"; else echo "$MAINLINE_GIT"; fi
+}
+
 # The files (not subdirectories) directly in <dir> at <tag>, from cgit's plain
 # directory listing. Subdirectories are separate drivers and are not needed.
 list_dir() {
   local tag=$1 dir=$2 listing
-  listing=$(curl --fail --silent --show-error --location --retry 6 "$KERNEL_GIT/plain/$dir/?h=$tag")
+  listing=$(curl --fail --silent --show-error --location --retry 6 "$(tag_repo "$tag")/plain/$dir/?h=$tag")
   grep -oE "plain/$dir/[^/?']+\?h=" <<< "$listing" | sed -E 's|^plain/||; s|\?h=$||'
 }
 
@@ -39,9 +47,10 @@ main() {
     echo "usage: tools/update-source.sh <tag>" >&2
     return 2
   fi
-  local tag=$1 root series staging listing path
+  local tag=$1 root series staging listing path repo
   root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
   series=$(tag_series "$tag")
+  repo=$(tag_repo "$tag")
   staging=$(mktemp -d)
   # shellcheck disable=SC2064 # expand now: $staging is local to main
   trap "rm -rf -- $(printf %q "$staging")" EXIT
@@ -57,7 +66,7 @@ main() {
   local args=()
   for path in "${sources[@]}"; do
     mkdir -p "$staging/$(dirname "$path")"
-    args+=(-o "$staging/$path" "$KERNEL_GIT/plain/$path?h=$tag")
+    args+=(-o "$staging/$path" "$repo/plain/$path?h=$tag")
   done
   # One transfer at a time over a reused connection: git.kernel.org answers
   # concurrent requests with 503, and sequential ones now and then, which

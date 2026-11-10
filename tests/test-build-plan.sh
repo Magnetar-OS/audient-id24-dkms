@@ -39,6 +39,11 @@ expect "$root/patches/v7.2-audient-id24-mixer-map.patch" series_patch "$root" v7
 expect "$root/patches/v7.3-audient-id24-ignore-broken-controls.patch" series_patch "$root" v7.3
 expect "<error>" series_patch "$root" v7.1
 
+# rcs and releases come from mainline, which tags them days before stable.
+expect "$MAINLINE_GIT" tag_repo v7.4-rc2
+expect "$MAINLINE_GIT" tag_repo v7.4
+expect "$STABLE_GIT"   tag_repo v7.3.3
+
 expect v7.3-rc4 kernel_tag 7.3.0-rc4-1-cachyos-rc
 expect v7.3     kernel_tag 7.3.0-1-cachyos
 expect v7.2.8   kernel_tag 7.2.8-1-cachyos
