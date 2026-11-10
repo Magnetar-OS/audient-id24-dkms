@@ -37,6 +37,7 @@ expect "<error>" tag_series v7.3-rc3-dirty
 
 expect "$root/patches/v7.2-audient-id24-mixer-map.patch" series_patch "$root" v7.2
 expect "$root/patches/v7.3-audient-id24-ignore-broken-controls.patch" series_patch "$root" v7.3
+expect "$root/patches/v7.4-audient-id24-ignore-broken-controls.patch" series_patch "$root" v7.4
 expect "<error>" series_patch "$root" v7.1
 
 # rcs and releases come from mainline, which tags them days before stable.
