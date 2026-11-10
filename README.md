@@ -157,9 +157,9 @@ Nothing from this repository is submitted yet.
 
 - Kernel: the rename is upstream since 7.3-rc2.
   `patches/v7.4-audient-id24-ignore-broken-controls.patch` is the remaining
-  change, written on top of it, and ready for `git send-email
-  --to=linux-sound@vger.kernel.org --cc=tiwai@suse.de --cc=perex@perex.cz`
-  once it has a Signed-off-by.
+  change, written on top of it. It goes by `git send-email` to the
+  recipients `scripts/get_maintainer.pl` lists: `linux-sound@vger.kernel.org`,
+  `tiwai@suse.com`, `perex@perex.cz` and `linux-kernel@vger.kernel.org`.
 - UCM: a pull request to alsa-project/alsa-ucm-conf adds the two files and the
   line `Macro.id24-000d.StringMatch "Id='2708:000d'
   Profile='Audient/Audient-iD24-000d'"` to `USB-Audio.conf`. Once that ships,
