@@ -7,7 +7,7 @@ Notable changes, in the format of [Keep a Changelog](https://keepachangelog.com/
 ### Fixed
 
 - **The replacement driver no longer lags the kernel's own.** The vendored
-  `sound/usb` moves to v7.2.15 (7.2's last release) and v7.3.3, which bring
+  `sound/usb` moves to v7.2.15 (7.2's last release) and v7.3.6, which bring
   upstream's `max_urb_packs` clamp before the endpoint `memcpy` (an array
   overrun), the ready-list race fix in `endpoint.c`, and the newer
   implicit-feedback, mixer-map and device quirks. Before this, the module DKMS
@@ -31,12 +31,12 @@ Notable changes, in the format of [Keep a Changelog](https://keepachangelog.com/
   sixteen bogus `ADAT-8 Volume` controls are gone, and so is the Input Gain
   dmesg spam.
 - **Kernel 7.4 is supported.** DKMS builds the module for 7.4 kernels from
-  vendored v7.4-rc2. Before, a 7.4 kernel failed its DKMS build and kept the
+  vendored v7.4-rc4. Before, a 7.4 kernel failed its DKMS build and kept the
   stock driver.
 - Patches for kernel series 7.2, with the whole map, and 7.3 and 7.4, with
   only the two removals on top of the rename upstream added in 7.3-rc2.
 - The build is offline, from vendored upstream `sound/usb` for 7.2 (v7.2.15),
-  7.3 (v7.3.3) and 7.4 (v7.4-rc2), so it works inside pacman's network-less hooks. A kernel
+  7.3 (v7.3.6) and 7.4 (v7.4-rc4), so it works inside pacman's network-less hooks. A kernel
   from a series with no vendored source fails loudly and keeps its stock
   driver.
 - `tools/update-source.sh <tag>` vendors a new series or a newer upstream

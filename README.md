@@ -65,8 +65,8 @@ the source:
 | Series | Vendored tag | Patch                                            |
 |--------|--------------|--------------------------------------------------|
 | v7.2   | `v7.2.15`    | `v7.2-audient-id24-mixer-map.patch`              |
-| v7.3   | `v7.3.3`     | `v7.3-audient-id24-ignore-broken-controls.patch` |
-| v7.4   | `v7.4-rc2`   | `v7.4-audient-id24-ignore-broken-controls.patch` |
+| v7.3   | `v7.3.6`     | `v7.3-audient-id24-ignore-broken-controls.patch` |
+| v7.4   | `v7.4-rc4`   | `v7.4-audient-id24-ignore-broken-controls.patch` |
 
 7.2 is end of life upstream and v7.2.15 is its last release, so `vendor/v7.2`
 needs no further refreshes.
